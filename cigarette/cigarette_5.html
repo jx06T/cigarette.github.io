@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>煙</title>
+    <style>
+        canvas {
+            background-color: black;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            margin: 0px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: rgb(46, 46, 46);
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        //環境
+        let Size = 1
+        let Speed = 0.75
+        let Vision = 37
+        let mouseX = 0
+        let mouseY = 0
+        class Ball {
+            constructor() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.vx = Math.random() * 4 + 4
+                this.vy = Math.random() * 4 + 4
+            }
+
+            move() {
+                this.x += this.vx
+                this.y += this.vy
+                if (this.x > width || this.x < 0) {
+                    this.vx = this.vx * -1
+                    this.x += this.vx
+                }
+                if (this.y < 0 || this.y > height) {
+                    this.vy = this.vy * -1
+                    this.y += this.vy
+                }
+            }
+        }
+        function GetD(d) {
+            let NewD = d + Math.random() * 100 - 50
+            NewD = NewD > 10 ? 10 : NewD
+            NewD = NewD < -190 ? -190 : NewD
+            return NewD
+        }
+        //煙霧
+        class SmallParticle {
+            // 初始函式
+            constructor(x, y, i) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0
+                this.vy = 0
+                this.size = Size + 0.7 + Math.random() * 1 - 0.5
+                this.a = Math.random()*0.3+0.05
+                this.number = i
+            }
+            move(vx, vy) {
+                if (Math.random() * 100 > 25) {
+                    this.vx += (vx - this.vx) * 0.7
+                    this.vy += (vy - this.vy) * 0.4
+                }
+                this.vx += Math.random()*1-0.5
+                this.vy += Math.random()*1-0.5
+                this.x += this.vx * Speed
+                this.y += this.vy * Speed
+                if (this.x > width || this.x < 0 || this.y < 0 || this.y > height) {
+                    return true
+                }
+            }
+            draw(ctx) {
+                // ctx.fillStyle = "rgba(200,200,200,0.2)"
+                ctx.fillStyle = "rgba(200,200,200,"+this.a+")"
+                // ctx.fillStyle = "#900   "
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+        class BigParticle {
+            // 初始函式
+            constructor(x, y) {
+                this.d = -90
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.size = Size + Math.random() * 1 - 0.5
+                this.i = 0
+                this.kids = []
+                for (let i = 0; i < 20; i++) {
+                    this.kids.push(new SmallParticle(this.x, this.y, i))
+                }
+            }
+            move() {
+                if (this.i % 10 == 0) {
+                    this.d = GetD(this.d)
+                    // console.log(GetD(this.d))
+                    this.vx = Math.cos((this.d * Math.PI) / 180) * 3.3;
+                    this.vy = Math.sin((this.d * Math.PI) / 180) * 3;
+                }
+                this.vx += Math.random() * 0.5 - 0.25
+                this.vy += Math.random() * -0.25
+                this.i++
+                this.x += this.vx * Speed
+                this.y += this.vy * Speed
+                this.updata(this.vx, this.vy)
+                if (this.x > width || this.x < 0 || this.y < 0 || this.y > height) {
+                    return true
+                }
+                let BestY = 10
+                let BestX = 0
+                for (let particle of BigParticles) {
+                    let DX = particle.x - this.x
+                    let DY = particle.y - this.y
+                    let distance = Math.sqrt(DX * DX + DY * DY)
+                    if (particle !== this && distance < Vision && DY < BestY && DY > -20) {
+                        BestY = DY
+                        BestX = DX
+                    }
+                }
+                this.updata(BestX / 6, BestY / 6)
+                this.x += BestX / 7 * Speed
+                this.y += BestY / 7 * Speed
+                let MX = mouseX - this.x
+                let MY = mouseY - this.y
+                let MD = Math.sqrt(MX * MX + MY * MY)
+                if (MD < Vision * 2) {
+                    MX = MX / MD * 1.5
+                    MY = MY / MD * 0.7
+                    this.vx += -MX
+                    this.vy += -MY
+                    this.updata(-MX, -MY)
+                }
+                MX = ball.x - this.x
+                MY = ball.y - this.y
+                MD = Math.sqrt(MX * MX + MY * MY)
+                if (MD < Vision * 2) {
+                    MX = MX / MD * 1.5
+                    MY = MY / MD * 0.7
+                    this.vx += -MX
+                    this.vy += -MY
+                    this.updata(-MX, -MY)
+                }
+            }
+            draw(ctx) {
+                ctx.fillStyle = "rgba(200,200,200,0.5)"
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+                ctx.fill();
+                // ctx.arc(ball.x, ball.y, 7, 0, 2 * Math.PI);
+                // ctx.fill();
+                for (let kid of this.kids) {
+                    kid.draw(ctx)
+                }
+                // console.log(this.y)
+            }
+            updata(x, y) {
+                for (let i = 0; i < this.kids.length; i++) {
+                    let kid = this.kids[i]
+                    if (kid.move(x, y)) {
+                        this.kids.splice(i, 1);
+                        i--
+                    }
+                }
+            }
+        }
+        //初始
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width = 0
+        let height = 0
+        const BigParticles = []
+        let number = -1
+        let ball = new Ball()
+        // 更新函式每秒60
+        setInterval(function () {
+            ball.move()
+            if (window.innerHeight != height || window.innerWidth != width) {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+                ball = new Ball()
+            }
+            if (number % 2 == 0) {
+                const x = width / 2
+                const y = height - 10
+                for (let i = 0; i < 2; i++) {
+                    BigParticles.push(new BigParticle(x, y));
+                }
+            }
+
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            for (let i = 0; i < BigParticles.length; i++) {
+                let BigParticle = BigParticles[i]
+                if (BigParticle.move()) {
+                    BigParticles.splice(i, 1);
+                    i--
+                }
+                BigParticle.draw(ctx)
+            }
+            number++
+        }, 1000 / 10);
+
+
+        canvas.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX
+            mouseY = event.clientY
+        });
+
+
+    </script>
+</body>
+
+</html>
